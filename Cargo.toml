@@ -8,7 +8,7 @@ rust-version = "1.77"
 
 [[bin]]
 name = "esp32-hello"
-harness = false # do not use the built in cargo test harness -> resolve rust-analyzer errors
+harness = false      # do not use the built in cargo test harness -> resolve rust-analyzer errors
 
 [profile.release]
 opt-level = "s"
@@ -24,7 +24,13 @@ experimental = ["esp-idf-svc/experimental"]
 
 [dependencies]
 log = "0.4"
-esp-idf-svc = { version = "0.51", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }
+esp-idf-svc = { version = "0.51", features = [
+    "critical-section",
+    "embassy-time-driver",
+    "embassy-sync",
+] }
+esp-idf-hal = "0.45.2"
+anyhow = "1.0.98"
 
 [build-dependencies]
 embuild = "0.33"
