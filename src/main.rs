@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use anyhow::Error;
 use esp_idf_hal::{delay::FreeRtos, gpio::PinDriver};
 use esp_idf_svc::{
@@ -7,6 +9,8 @@ use esp_idf_svc::{
     wifi::{BlockingWifi, EspWifi},
 };
 
+mod http_server;
+mod types;
 mod utils;
 
 const WIFI_SSID: &str = "nhrdev";
@@ -26,7 +30,12 @@ fn main() -> Result<(), Error> {
 
     let nvs = EspDefaultNvsPartition::take()?;
 
-    let mut led = PinDriver::output(peripherals.pins.gpio2)?;
+    let led_pin = PinDriver::output(peripherals.pins.gpio2)?;
+
+    let shared_state = Arc::new(Mutex::new(types::state::State {
+        led_on: false,
+        led_pin,
+    }));
 
     let mut esp_wifi = EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs.clone()))?;
 
@@ -37,10 +46,13 @@ fn main() -> Result<(), Error> {
     let ip_info = wifi.wifi().sta_netif().get_ip_info();
     log::info!("[+] Wifi DHCP IP info: {:?}", ip_info);
 
+    let _server = http_server::main::run(shared_state.clone())?;
+
+    log::info!("[+] Http server started");
+
     log::info!("[+] Alhamdulillah :)");
 
     let mut counter = 0;
-    let mut led_is_on = false;
 
     loop {
         // this loop will end after an hour to keep the ESP32 running for an hour
@@ -48,30 +60,30 @@ fn main() -> Result<(), Error> {
             break;
         }
 
-        if !led_is_on {
-            let err = &led.set_high();
-            match err {
-                Err(e) => {
-                    log::error!("[!] Failed to turn on the LED: {:?}", e);
-                }
-                _ => {
-                    led_is_on = true;
-                    log::info!("[+] LED is turned on");
-                }
-            };
-        } else {
-            let err = &led.set_low();
+        // if !led_is_on {
+        //     let err = &led.set_high();
+        //     match err {
+        //         Err(e) => {
+        //             log::error!("[!] Failed to turn on the LED: {:?}", e);
+        //         }
+        //         _ => {
+        //             led_is_on = true;
+        //             log::info!("[+] LED is turned on");
+        //         }
+        //     };
+        // } else {
+        //     let err = &led.set_low();
 
-            match err {
-                Err(e) => {
-                    log::error!("[!] Failed to turn off the LED: {:?}", e);
-                }
-                _ => {
-                    led_is_on = false;
-                    log::info!("[+] LED is turned off");
-                }
-            };
-        }
+        //     match err {
+        //         Err(e) => {
+        //             log::error!("[!] Failed to turn off the LED: {:?}", e);
+        //         }
+        //         _ => {
+        //             led_is_on = false;
+        //             log::info!("[+] LED is turned off");
+        //         }
+        //     };
+        // }
 
         log::info!("[+] main fn is alive for: {} seconds", counter);
         counter += 1;
